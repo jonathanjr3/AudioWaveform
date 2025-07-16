@@ -42,7 +42,7 @@ Here is a complete example:
 
 ```swift
 import SwiftUI
-import SwiftUIAudioWaveform
+import AudioWaveform
 
 struct ContentView: View {
     // Access the shared monitor instance
@@ -109,7 +109,7 @@ Here's how you could create a segmented control to switch between different char
 
 ```swift
 import SwiftUI
-import SwiftUIAudioWaveform
+import AudioWaveform
 
 struct ContentView: View {
     @State private var monitor = AudioWaveformMonitor.shared
