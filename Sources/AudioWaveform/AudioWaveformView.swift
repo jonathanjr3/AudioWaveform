@@ -24,12 +24,12 @@ public struct AudioWaveformView: View {
         self.color = color
         self.chartType = chartType
         self.interpolationMethod = interpolationMethod
-        self.downsampleFactor = downsampleFactor
+        self.downsampleFactor = max(1, downsampleFactor)
     }
 
     private var downsampledMagnitudes: [Float] {
-        monitor.fftMagnitudes.lazy.enumerated().compactMap { index, value in
-            index.isMultiple(of: downsampleFactor) ? value : nil
+        stride(from: 0, to: monitor.fftMagnitudes.count, by: downsampleFactor).map {
+            monitor.fftMagnitudes[$0]
         }
     }
 
@@ -47,7 +47,8 @@ public struct AudioWaveformView: View {
             case .bar:
                 BarMark(
                     x: .value("Frequency", index * downsampleFactor),
-                    y: .value("Magnitude", value)
+                    y: .value("Magnitude", value),
+                    width: .fixed(CGFloat(downsampleFactor))
                 )
                 .foregroundStyle(color)
 
