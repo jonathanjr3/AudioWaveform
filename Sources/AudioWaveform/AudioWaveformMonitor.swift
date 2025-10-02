@@ -136,12 +136,20 @@ public final class AudioWaveformMonitor {
     public static let shared = AudioWaveformMonitor()
     
     public private(set) var fftMagnitudes: [Float]
+    public var downsampledMagnitudes: [Float] {
+        guard fftMagnitudes.isEmpty == false else { return [] }
+        return stride(from: 0, to: fftMagnitudes.count, by: downsampleFactor).map {
+            fftMagnitudes[$0]
+        }
+    }
     
     private let processor: AudioWaveformProcessor
+    let downsampleFactor: Int
     
-    public init(fftSize: Int = 8192, magnitudeCount: Int = 200) {
+    public init(fftSize: Int = 4096, magnitudeCount: Int = 200, downSampleFactor: Int = 8) {
         self.processor = AudioWaveformProcessor(fftSize: fftSize, magnitudeCount: magnitudeCount)
         self.fftMagnitudes = [Float](repeating: 0, count: magnitudeCount)
+        self.downsampleFactor = max(1, downSampleFactor)
     }
     
     public func reset() {

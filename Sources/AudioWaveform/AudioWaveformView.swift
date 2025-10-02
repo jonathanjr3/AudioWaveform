@@ -14,7 +14,6 @@ public struct AudioWaveformView: View {
     private let style: AnyShapeStyle
     private let chartType: WaveformChartType
     private let interpolationMethod: InterpolationMethod
-    private let downsampleFactor: Int
     private let renderSize: CGSize?
     private let capsuleHeightScale: CGFloat = 0.75
 
@@ -23,22 +22,13 @@ public struct AudioWaveformView: View {
         style: S = Color.blue,
         chartType: WaveformChartType = .line,
         interpolationMethod: InterpolationMethod = .catmullRom,
-        downsampleFactor: Int = 8,
         renderSize: CGSize? = nil
     ) {
         self.monitor = monitor
         self.style = AnyShapeStyle(style)
         self.chartType = chartType
         self.interpolationMethod = interpolationMethod
-        self.downsampleFactor = max(1, downsampleFactor)
         self.renderSize = renderSize
-    }
-
-    private var downsampledMagnitudes: [Float] {
-        guard monitor.fftMagnitudes.isEmpty == false else { return [] }
-        return stride(from: 0, to: monitor.fftMagnitudes.count, by: downsampleFactor).map {
-            monitor.fftMagnitudes[$0]
-        }
     }
 
     public var body: some View {
@@ -50,28 +40,28 @@ public struct AudioWaveformView: View {
                 chartWaveform
             }
         }
-        .animation(.easeOut, value: downsampledMagnitudes)
+        .animation(.easeOut, value: monitor.downsampledMagnitudes)
     }
 
     private var chartWaveform: some View {
-        Chart(Array(downsampledMagnitudes.enumerated()), id: \.offset) { index, value in
+        Chart(Array(monitor.downsampledMagnitudes.enumerated()), id: \.offset) { index, value in
             if chartType == .line {
                 LineMark(
-                    x: .value("Frequency", index * downsampleFactor),
+                    x: .value("Frequency", index * monitor.downsampleFactor),
                     y: .value("Magnitude", value)
                 )
                 .interpolationMethod(interpolationMethod)
                 .foregroundStyle(style)
             } else if chartType == .bar {
                 BarMark(
-                    x: .value("Frequency", index * downsampleFactor),
+                    x: .value("Frequency", index * monitor.downsampleFactor),
                     y: .value("Magnitude", value),
-                    width: .fixed(CGFloat(max(1, downsampleFactor)))
+                    width: .fixed(CGFloat(max(1, monitor.downsampleFactor)))
                 )
                 .foregroundStyle(style)
             } else {
                 AreaMark(
-                    x: .value("Frequency", index * downsampleFactor),
+                    x: .value("Frequency", index * monitor.downsampleFactor),
                     y: .value("Magnitude", value)
                 )
                 .interpolationMethod(interpolationMethod)
@@ -86,7 +76,7 @@ public struct AudioWaveformView: View {
     private var capsuleWaveform: some View {
         GeometryReader { geometry in
             let size = renderSize ?? geometry.size
-            let values = downsampledMagnitudes
+            let values = monitor.downsampledMagnitudes
             let maxValue = max(values.max() ?? 1, 1)
             let count = max(values.count, 1)
             let step = size.width / CGFloat(count)

@@ -67,6 +67,8 @@ final class AudioCaptureController {
 }
 ```
 
+**Note:** Set `AudioWaveformMonitor`'s `fftSize` to the same value you pass as the tap's `bufferSize`. Matching the sizes avoids extra zero-padding work and ensures the FFT represents the exact frames you captured.
+
 If you are working with raw sample arrays (for example, from a network stream), call `monitor.process(samples:)` instead.
 
 ### 3. Display the Waveform in SwiftUI
