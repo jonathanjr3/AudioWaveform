@@ -1,135 +1,127 @@
 # AudioWaveform
 
-A modern and customizable Swift package for rendering live audio waveforms in SwiftUI. Built with the latest APIs, including `SwiftUI`, `Charts`, and `Observation`, this package provides a simple way to visualize audio input from the microphone.
+AudioWaveform is a Swift package that turns microphone samples into a live waveform you can drop into any SwiftUI app. You keep full control of the audio capture pipeline—pipe your buffers into the package and it handles the  rendering.
 
 This package is inspired by and based on the concepts presented in the article [Creating a Live Audio Waveform in SwiftUI](https://www.createwithswift.com/creating-a-live-audio-waveform-in-swiftui/).
 
 ## Features
 
--   🎤 **Live Audio Visualization**: Captures audio from the device's microphone and displays it as a real-time waveform.
--   🎨 **Highly Customizable**: Easily change the waveform's color, chart type (line, bar, or area), and interpolation method.
+- ⚡ **Real-Time FFT Processing** – Uses Accelerate to transform incoming audio into magnitude bins optimised for visualisation.
+- 🎨 **Customisable SwiftUI View** – Render the waveform as a line, bar, area, or capsule chart and style it with colours or gradients.
 
 ## Requirements
 
--   iOS 18.0+
--   macOS 15.0+
--   Xcode 16.0+
--   Swift 6.0+
+- iOS 18.0+
+- macOS 15.0+
+- Xcode 16.0+
+- Swift 6.0+
 
 ## Installation
 
-You can add `AudioWaveform` to your Xcode project as a package dependency.
+1. In Xcode, choose **File > Add Package Dependencies…**
+2. Enter the repository URL: `https://github.com/jonathanjr3/AudioWaveform.git`
+3. Select the version rules that fit your project and add the package to your target.
 
-1.  In Xcode, open your project and navigate to **File > Add Package Dependencies...**
-2.  Enter the repository URL: `https://github.com/jonathanjr3/AudioWaveform.git`
-3.  Choose the version rules and add the package to your desired target.
+## Getting Started
 
-## How to Use
+The package exposes two primary types:
 
-The package is designed to be incredibly simple to use. It consists of a data model, `AudioWaveformMonitor`, and a SwiftUI view, `AudioWaveformView`.
+- `AudioWaveformMonitor`: receives audio samples and publishes FFT magnitudes that your UI can observe.
+- `AudioWaveformView`: a SwiftUI view that visualises those magnitudes in waveforms
 
 ### 1. Request Microphone Permission
 
-First, ensure your app has permission to access the microphone. Add the following key to your app's `Info.plist` file:
+Add the following key to your app’s `Info.plist`:
 
--   **Privacy - Microphone Usage Description**: `(Your reason for needing the microphone, e.g., "To visualize audio input.")`
+- **Privacy – Microphone Usage Description**: explain why you need microphone access.
 
-### 2. Display the Waveform
+### 2. Capture Audio Buffers
 
-Import the package and use the `AudioWaveformView` in your SwiftUI view. You can control the monitoring process using the `AudioWaveformMonitor.shared` singleton.
+Install a tap on your existing `AVAudioEngine` (or other capture source) and forward every buffer to the monitor. The same tap can simultaneously feed frameworks such as Speech or SoundAnalysis.
 
-Here is a complete example:
+```swift
+import AVFoundation
+import AudioWaveform
+
+final class AudioCaptureController {
+    let monitor = AudioWaveformMonitor.shared
+    private let engine = AVAudioEngine()
+
+    func start() throws {
+        let inputNode = engine.inputNode
+        let format = inputNode.inputFormat(forBus: 0)
+
+        inputNode.installTap(onBus: 0, bufferSize: 8192, format: format) { buffer, _ in
+            monitor.process(buffer: buffer)
+            // Append the same buffer to your speech recognizer here, if using any.
+        }
+
+        try engine.start()
+    }
+
+    func stop() {
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        monitor.reset()
+    }
+}
+```
+
+If you are working with raw sample arrays (for example, from a network stream), call `monitor.process(samples:)` instead.
+
+### 3. Display the Waveform in SwiftUI
+
+Inject the monitor into `AudioWaveformView` and embed it in your layout.
 
 ```swift
 import SwiftUI
 import AudioWaveform
 
 struct ContentView: View {
-    // Access the shared monitor instance
     @State private var monitor = AudioWaveformMonitor.shared
 
     var body: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 32) {
             Text("Live Audio Waveform")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.title.bold())
 
-            // Add the waveform view
             AudioWaveformView(
-                color: .cyan,
+                monitor: monitor,
+                style: Color.cyan,
                 chartType: .area,
                 interpolationMethod: .catmullRom
             )
-            .frame(height: 250)
-
-            Button(action: {
-                if monitor.isMonitoring {
-                    monitor.stopMonitoring()
-                } else {
-                    Task {
-                        // Start monitoring in a background task
-                        await monitor.startMonitoring()
-                    }
-                }
-            }) {
-                Label(monitor.isMonitoring ? "Stop Monitoring" : "Start Monitoring",
-                      systemImage: monitor.isMonitoring ? "mic.slash.fill" : "mic.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(monitor.isMonitoring ? .red : .accentColor)
+            .frame(height: 240)
         }
         .padding()
     }
 }
 ```
 
-## Customization
+## Customisation
 
-You can customize the appearance of the `AudioWaveformView` by passing parameters to its initializer.
+Configure the view at creation time:
 
 ```swift
-public init(
-    color: Color = .blue,
-    chartType: WaveformChartType = .line,
-    interpolationMethod: InterpolationMethod = .catmullRom,
-    downsampleFactor: Int = 8
+AudioWaveformView(
+    monitor: AudioWaveformMonitor(fftSize: 4096, magnitudeCount: 128),
+    style: LinearGradient(colors: [.green, .blue], startPoint: .bottom, endPoint: .top),
+    chartType: .capsule,
+    interpolationMethod: .monotone,
+    downsampleFactor: 8,
+    renderSize: CGSize(width: 240, height: 96)
 )
 ```
 
--   **`color`**: The primary color of the waveform.
--   **`chartType`**: The type of chart to display. Can be `.line`, `.bar`, or `.area`.
--   **`interpolationMethod`**: The `InterpolationMethod` for `LineMark` and `AreaMark` from the `Swift Charts` framework.
--   **`downsampleFactor`**: An integer factor to downsample the FFT data, which can simplify the visual complexity of the waveform.
+- `fftSize` / `magnitudeCount`: control FFT resolution if you initialise a custom monitor.
+- `style`: accepts any `ShapeStyle` (`Color`, `LinearGradient`, `AngularGradient`, etc.).
+- `chartType`: `.line`, `.bar`, `.area`, or `.capsule` for a rounded bar style similar to digital waveforms.
+- `renderSize`: optionally pin the capsule waveform to a fixed size so spacing and bar width match your design.
+- `interpolationMethod`: forwarded to Swift Charts for smooth curves.
+- `downsampleFactor`: skip bins to simplify the waveform.
 
-### Example with Customizations
+Call `monitor.reset()` when you end a recording to clear the visualization. When using `.capsule`, provide a `renderSize` and an apt `downsampleFactor` to fit within the given width.
 
-Here's how you could create a segmented control to switch between different chart types dynamically.
+## Advanced Notes
 
-```swift
-import SwiftUI
-import AudioWaveform
-
-struct ContentView: View {
-    @State private var monitor = AudioWaveformMonitor.shared
-    @State private var chartType: WaveformChartType = .line
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Picker("Chart Type", selection: $chartType) {
-                Text("Line").tag(WaveformChartType.line)
-                Text("Bar").tag(WaveformChartType.bar)
-                Text("Area").tag(WaveformChartType.area)
-            }
-            .pickerStyle(.segmented)
-            
-            AudioWaveformView(chartType: chartType)
-                .frame(height: 300)
-
-            // ... Start/Stop Button
-        }
-        .padding()
-    }
-}
-```
+- The processor clamps magnitudes to `0...100` by default, adjust UI scaling via `downsampleFactor` or Swift Charts modifiers.
