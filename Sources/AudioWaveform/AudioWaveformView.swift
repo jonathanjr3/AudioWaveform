@@ -26,7 +26,7 @@ public struct AudioWaveformView: View {
         downsampleFactor: Int = 8,
         renderSize: CGSize? = nil
     ) {
-        _monitor = State(initialValue: monitor)
+        self.monitor = monitor
         self.style = AnyShapeStyle(style)
         self.chartType = chartType
         self.interpolationMethod = interpolationMethod
