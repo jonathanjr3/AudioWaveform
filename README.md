@@ -106,11 +106,10 @@ Configure the view at creation time:
 
 ```swift
 AudioWaveformView(
-    monitor: AudioWaveformMonitor(fftSize: 4096, magnitudeCount: 128),
+    monitor: AudioWaveformMonitor(fftSize: 4096, magnitudeCount: 128, downsampleFactor: 8),
     style: LinearGradient(colors: [.green, .blue], startPoint: .bottom, endPoint: .top),
     chartType: .capsule,
     interpolationMethod: .monotone,
-    downsampleFactor: 8,
     renderSize: CGSize(width: 240, height: 96)
 )
 ```
