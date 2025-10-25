@@ -22,6 +22,9 @@ This package is inspired by and based on the concepts presented in the article [
 2. Enter the repository URL: `https://github.com/jonathanjr3/AudioWaveform.git`
 3. Select the version rules that fit your project and add the package to your target.
 
+## Demo
+![Audio wave form](Media/AudioWaveForm.gif)
+
 ## Getting Started
 
 The package exposes two primary types:
